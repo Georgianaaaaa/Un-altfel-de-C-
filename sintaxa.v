@@ -339,11 +339,80 @@ Notation "A s:= S ":=(string_array A S) (at level 20).
 Check ("v" n:= [ 1 , 2 , 3 ]).
 
 
+Inductive Array_op :=
+| array_length : ErrorArray -> Array_op
+| add_elem : ErrorArray -> ValueTypes -> Array_op
+| delete_elem : ErrorArray -> nat -> Array_op
+| max_array : ErrorArray -> Array_op
+| min_array : ErrorArray -> Array_op.
+
+Check array_length ("v" n:= [ 1 , 2 , 3 ]).
 
 
 
+Inductive Mem :=
+  | mem_default : Mem
+  | offset : nat -> Mem.
+
+Scheme Equality for Mem.
+Definition ENV := string -> Mem.
+
+Definition MemLayer := Mem -> ValueTypes.
+
+Definition Stack := list Env.
+
+Inductive Config :=
+| config : nat -> ENV -> MemLayer -> Stack -> Config.
+
+
+Definition update_env (env: ENV) (x: string) (n: Mem) : ENV :=
+  fun y =>
+      (* If the variable has assigned a default memory zone, 
+         then it will be updated with the current memory offset *)
+      if (andb (string_beq x y ) (Mem_beq (env y) mem_default))
+      then
+       n
+      else
+        (env y).
+
+Definition env1 : ENV := fun x => mem_default.
+(* Initially each variable is assigned to a default memory zone *)
+Compute (env "z"). (* The variable is not yet declared *)
+
+(* Example of updating the environment, based on a specific memory offset *)
+Compute (update_env env1 "x" (offset 9)) "x".
+
+(* Function for updating the memory layer *)
+Definition update_mem (mem : MemLayer) (env : ENV) (x : string) (type : Mem) (v : ValueTypes) : MemLayer :=
+  fun y => 
+      if(andb (Mem_beq (env x) type) (Mem_beq y type))
+      then
+        if(andb(check_eq_over_types err_undeclared (mem y)) (negb(check_eq_over_types default_nat v)))
+        then err_undeclared
+        else if (check_eq_over_types err_undeclared (mem y))
+            then default_nat
+            else if(orb(check_eq_over_types default_nat (mem y)) (check_eq_over_types v (mem y)))
+                 then v
+                 else err_assignment
+      else (mem y).
+
+(* Each variable/function name is initially mapped to undeclared *)
+Definition mem : MemLayer := fun x => err_undeclared.
 
 (*POINTERI SI REFERINTE*)
+
+Inductive pointer :=
+| null_pointer : pointer
+| Pointer : string -> pointer
+| reference : string -> pointer.
+
+Notation " * S " := (Pointer S)(at level 60).
+Notation " & S " := (reference S )(at level 60).
+Check * "s".
+Check & "s".
+
+
+
 
 Inductive Stmt :=
 | nat_decl : string -> AExp -> Stmt
