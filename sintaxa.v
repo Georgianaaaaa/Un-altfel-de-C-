@@ -6,8 +6,7 @@ Require Import Ascii.
 Require Import Bool.
 Require Import Coq.Strings.Byte.
 Scheme Equality for string.
-Require Import Coq.ZArith.BinInt.
-Local Open Scope Z_scope.
+
 
 
 Inductive ErrorNat :=
@@ -18,20 +17,18 @@ Inductive ErrorBool :=
   | error_bool : ErrorBool
   | boolean : bool -> ErrorBool.
 
+(*TIPUL CHAR*)
+
 Inductive ErrorString :=
   | error_string : ErrorString
   | stringg : string -> ErrorString.
  
-Inductive ErrorInt :=
-  | error_int : ErrorInt
-  | Int : Z -> ErrorInt.
 
-Check -7.
 
 Coercion num : nat >-> ErrorNat.
 Coercion boolean : bool >-> ErrorBool.
 Coercion stringg : string >-> ErrorString.
-Coercion Int : Z >-> ErrorInt.
+
 
 
 
@@ -49,6 +46,7 @@ Inductive AExp :=
 Coercion anum : ErrorNat >-> AExp.
 Coercion avar : string >-> AExp.
 
+
 Notation "A +' B" := (aplus A B) (at level 60, right associativity).
 Notation "A *' B" := (amul A B) (at level 58, left associativity).
 Notation "A -' B" := (aminus A B) (at level 50, left associativity).
@@ -59,6 +57,7 @@ Compute 1 +' 2.
 Compute "x" -' 6.
 Compute 5 *' "x" /' 8.
 Compute 35 %' "i".
+
 
 
 Definition plus_ErrorNat (n1 n2 : ErrorNat) : ErrorNat :=
@@ -129,7 +128,6 @@ Check "x" >' 10 and' (15 <' "m" -' 2).
 
 
 
-
 Definition blessthan_ErrorBool (n1 n2 : ErrorNat) : ErrorBool :=
   match n1, n2 with
     | error_nat, _ => error_bool
@@ -176,7 +174,7 @@ Definition bequal_ErrorBool (n1 n2 : ErrorNat) : ErrorBool :=
 
 Inductive Strings :=
 | string_var : string -> Strings
-| string_string : ErrorString -> Strings
+| string_err : ErrorString -> Strings
 | strlen : ErrorString -> Strings
 | strcat : ErrorString -> ErrorString -> Strings
 | strcmp : ErrorString -> ErrorString -> Strings.
@@ -251,15 +249,35 @@ Notation "A [[ N ]] s:= S ":=(string_array A N S) (at level 20).
 
 Check ("v"[[ 10 ]] n:= [ 1 , 2 , 3 ]).
 
+(*OPERATII CU VECTORI*)
 
 Inductive Array_op :=
 | array_length : ErrorArray -> Array_op
-| add_elem_nat : ErrorArray -> nat -> Array_op
+| add_elem_nat : nat -> ErrorArray -> nat -> Array_op
 | delete_elem : ErrorArray -> nat -> Array_op
 | max_array : ErrorArray -> Array_op
 | min_array : ErrorArray -> Array_op.
 
-Check array_length ("v" [[ 10 ]]n:= [ 1 , 2 , 3 ]).
+Notation " 'lg' X ":=(array_length X)(at level 90).
+Check (lg "v" [[ 10 ]]n:= [ 1 , 2 , 3 ]).
+
+Notation " 'add' A 'to' X 'on' I ":=(add_elem_nat A X I)(at level 90).
+Check add 7 to "v" [[ 10 ]]n:= [ 1 , 2 , 3 ] on 2.
+
+(*POINTERI SI REFERINTE*)
+
+Inductive pointer :=
+| errpointer : pointer
+| null_pointer : pointer
+| Pointer : string -> pointer
+| reference : string -> pointer.
+
+Scheme Equality for pointer.
+
+Notation " * S " := (Pointer S)(at level 60).
+Notation " & S " := (reference S )(at level 60).
+Check * "s".
+Check & "s".
 
 
 
@@ -281,15 +299,29 @@ Inductive Stmt :=
 | nat_array_assign : string -> nat -> (list nat) -> Stmt
 | bool_array_assign : string -> nat -> (list bool) -> Stmt
 | string_array_assign : string -> nat -> (list string) -> Stmt
+| pointer_decl : string -> string -> Stmt
+| reference_decl : string -> string -> Stmt
+| pointer_assignment : string -> string -> Stmt
+| reference_assignment : string -> string -> Stmt
 | citeste : string -> Stmt
 | afiseaza : string -> Stmt
-| apel_fct : string -> (list string) -> Stmt.
+| break : Stmt
+| continue : Stmt
+| apel_fct : string -> list string -> Stmt
+| switch_case : AExp -> list cases -> Stmt
+with cases :=
+| case : AExp -> Stmt -> cases
+| default_case : Stmt -> cases.
+
+
 
 Inductive Program :=
 | secv : Program -> Program -> Program
 | nat_decl_def : string -> Program
 | bool_decl_def : string -> Program
 | string_decl_def : string -> Program
+| array_decl_def : string -> nat -> Program
+| pointer_decl_def : string -> Program
 | main_fct : Stmt -> Program
 | fct : string -> list string -> Stmt -> Program.
 
@@ -333,7 +365,7 @@ Notation "X [[[ N ]]] n:-> A ":=(nat_array_assign X N A)(at level 90).
 Check "v"[[[ 2 ]]] n:-> [ 1 , 2 ].
 
 Notation "X [[[ N ]]] b:-> A ":=(bool_array_assign X N A)(at level 90).
-Check "b" [[[ 2 ]]]b:-> [ true , false ].
+Check "b" [[[ 2 ]]] b:-> [ true , false ].
 
 Notation "X [[[ N ]]] s:-> A ":=(string_array_assign X N A)(at level 90).
 Check "s" [[[ 10 ]]] s:-> [ "a" , "b" ].
@@ -358,8 +390,31 @@ Check STRING "s".
 
 Notation " S1 ;;; S2 ":=(secv S1 S2)(at level 90).
 Notation " 'int_main()' { S } ":=(main_fct S)(at level 90).
-Notation " 'int_functie' X (( N1 , .. , Nn )) { S }" := (fct X (cons N1 .. (cons Nn nil) .. ) S)(at level 90).
-(*Check int_functie "impar" (( "x" , "y" )) { "x" :n= "i" +' 10 }.*)
+Notation " 'int_functie' X (( N1 , .. , Nn )){ S }" := (fct X (cons N1 .. (cons Nn nil) .. ) S)(at level 90).
+Check (int_functie "impar" (( "x" , "y" )){ "x" :n= "y" +' 10 } ).
+
+Notation " 'default:{' S }; " := (default_case S) (at level 90).
+Notation " 'case(' S ):{ A }; " := (case S A) (at level 90).
+Notation " 'Switch(' A ){ S1 .. Sn '}endd' " := (switch_case A (cons S1 .. (cons Sn nil) .. ) ) (at level 90).
+
+Check  Switch( "a" ){ default:{ "a" :n=0 }; 
+                     case( 1 ):{ "a" :n=1 };
+                     case( 2 ):{ "b" :b=bfalse}; }endd.
+
+Notation " X := '*' A ":=(pointer_decl X A)(at level 90).
+Check "a" := * "p".
+
+Notation " X := '&' A ":=(reference_decl X A)(at level 90).
+Check "r" := & "ref".
+
+Notation " X p:= '*' A ":=(pointer_assignment X A)(at level 90).
+Check "p" p:= * "ab".
+
+Notation " X r:= '&' A ":=(reference_assignment X A)(at level 90).
+Check "r" r:= & "cd".
+
+Notation " 'pointer' '*' X ":=(pointer_decl_def X)(at level 90).
+Check pointer * "p".
 
 Inductive ValueTypes :=
 | default_nat : ValueTypes
@@ -538,17 +593,8 @@ Compute (update_env env1 "x" (offset 9)) "x".
 (* Each variable/function name is initially mapped to undeclared *)
 Definition mem : MemLayer := fun x => err_undeclared.*)
 
-(*POINTERI SI REFERINTE*)
 
-Inductive pointer :=
-| null_pointer : pointer
-| Pointer : string -> pointer
-| reference : string -> pointer.
 
-Notation " * S " := (Pointer S)(at level 60).
-Notation " & S " := (reference S )(at level 60).
-Check * "s".
-Check & "s".
 
 
 
