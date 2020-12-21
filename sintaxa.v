@@ -378,6 +378,8 @@ Check cout<< "x".
 
 Notation " X ((( S1 , .. , Sn )))" := (apel_fct X (cons S1 .. (cons Sn nil) .. ) ) (at level 90).
 Check "suma_pare" ((("a" , "b" ))).
+Notation " X ((( )))":=(apel_fct X nil)(at level 90).
+Check "cmmdc" ((( ))).
 
 Notation " 'NAT' X ":=(nat_decl_def X)(at level 90).
 Check NAT "x".
@@ -392,6 +394,12 @@ Notation " S1 ;;; S2 ":=(secv S1 S2)(at level 90).
 Notation " 'int_main()' { S } ":=(main_fct S)(at level 90).
 Notation " 'int_functie' X (( N1 , .. , Nn )){ S }" := (fct X (cons N1 .. (cons Nn nil) .. ) S)(at level 90).
 Check (int_functie "impar" (( "x" , "y" )){ "x" :n= "y" +' 10 } ).
+Notation " 'int_functie' X (( )){ S } ":=(fct X nil S)(at level 90).
+Check int_functie "alabala" (( )){ If ("i" >' "x") 
+                              Then "ok" :b= bfalse
+                              Else "sum" :n= "sum" +' "x" 
+                              End }.
+ 
 
 Notation " 'default:{' S }; " := (default_case S) (at level 90).
 Notation " 'case(' S ):{ A }; " := (case S A) (at level 90).
@@ -401,17 +409,17 @@ Check  Switch( "a" ){ default:{ "a" :n=0 };
                      case( 1 ):{ "a" :n=1 };
                      case( 2 ):{ "b" :b=bfalse}; }endd.
 
-Notation " X := '*' A ":=(pointer_decl X A)(at level 90).
-Check "a" := * "p".
+Notation " X :== '*' A ":=(pointer_decl X A)(at level 90).
+Check "a" :== * "p".
 
-Notation " X := '&' A ":=(reference_decl X A)(at level 90).
-Check "r" := & "ref".
+Notation " X :== '&' A ":=(reference_decl X A)(at level 90).
+Check "r" :== & "ref".
 
-Notation " X p:= '*' A ":=(pointer_assignment X A)(at level 90).
-Check "p" p:= * "ab".
+Notation " X p:== '*' A ":=(pointer_assignment X A)(at level 90).
+Check "p" p:== * "ab".
 
-Notation " X r:= '&' A ":=(reference_assignment X A)(at level 90).
-Check "r" r:= & "cd".
+Notation " X r:== '&' A ":=(reference_assignment X A)(at level 90).
+Check "r" r:== & "cd".
 
 Notation " 'pointer' '*' X ":=(pointer_decl_def X)(at level 90).
 Check pointer * "p".
