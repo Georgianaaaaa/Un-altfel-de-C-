@@ -481,11 +481,26 @@ Check ( int_functie "factorial"(( "n" )){ Nat "factorial" ::= 1 ;;
 
 
 
-(*Definition Env := string -> ValueTypes.
+Definition Env := string -> ValueTypes.
 
 
 Definition env : Env := fun x => err_undeclared.
-Compute (env "x").*)
+Compute (env "x").
+
+Inductive Mem :=
+  | mem_default : Mem
+  | offset : nat -> Mem.
+
+Scheme Equality for Mem.
+Definition ENV := string -> Mem.
+
+Definition MemLayer := Mem -> ValueTypes.
+
+Definition Stack := list Env.
+
+Inductive Config :=
+| config : nat -> ENV -> MemLayer -> Stack -> Config.
+
 
 Definition check_eq_over_types (t1 : ValueTypes) (t2 : ValueTypes) : bool :=
   match t1 with
@@ -531,6 +546,57 @@ Compute (check_eq_over_types (err_undeclared) (natural 10)).
 Compute (check_eq_over_types (natural 1) (natural 2)).
 Compute (check_eq_over_types (res_stringg "a") (res_boolean true)).
 Compute (check_eq_over_types (res_stringg "a") (res_stringg "b")).
+
+
+(*SEMANTICA PENTRU EXPRESIILE ARITMETICE*)
+
+Fixpoint aeval_fun (a : AExp) (env : Env) : ErrorNat :=
+  match a with
+  | avar v => match (env v) with
+                | natural n => n
+                | _ => error_nat
+                end
+  | anum v => v
+  | aplus a1 a2 => (plus_ErrorNat (aeval_fun a1 env) (aeval_fun a2 env))
+  | amul a1 a2 => (mul_ErrorNat (aeval_fun a1 env) (aeval_fun a2 env))
+  | aminus a1 a2 => (minus_ErrorNat (aeval_fun a1 env) (aeval_fun a2 env))
+  | adiv a1 a2 => (div_ErrorNat  (aeval_fun a1 env) (aeval_fun a2 env))
+  | amodulo a1 a2 => (modulo_ErrorNat (aeval_fun a1 env) (aeval_fun a2 env))
+  end.
+
+
+Reserved Notation "A-M =[ S ]=> N" (at level 60).
+
+Inductive aeval : AExp -> Env -> MemLayer -> ErrorNat -> Prop :=
+| const : forall n sigma m , anum n-m = [ sigma ]=> n (* <n,sigma> => <n> *) 
+| var : forall v sigma, avar v =[ sigma ]=> sigma v (* <v,sigma> => sigma(x) *)
+| addd : forall a1 a2 i1 i2 sigma n,
+    a1 =[ sigma ]=> i1 ->
+    a2 =[ sigma ]=> i2 ->
+    n = plus_ErrorNat i1 i2 ->
+    (a1 +' a2) =[sigma]=> n
+| times : forall a1 a2 i1 i2 sigma n,
+    a1 =[ sigma ]=> i1 ->
+    a2 =[ sigma ]=> i2 ->
+    n = i1 * i2 ->
+    (a1 *' a2) =[sigma]=> n
+| diff : forall a1 a2 i1 i2 sigma n,
+    a1 =[ sigma ]=> i1 ->
+    a2 =[ sigma ]=> i2 ->
+    n = minus_ErrorNat i1 i2 ->  
+   (a1 -' a2) =[sigma]=> n
+| divv : forall a1 a2 i1 i2 sigma n,
+    a1 =[ sigma ]=> i1 ->
+    a2 =[ sigma ]=> i2 ->
+    n = div_ErrorNat i1 i2 ->
+   (a1 /' a2) =[sigma]=> n
+| moduloo : forall a1 a2 i1 i2 sigma n,
+    a1 =[ sigma ]=> i1 ->
+    a2 =[ sigma ]=> i2 ->
+    n = modulor_ErrorNat i1 i2 ->
+   (a1 %' a2) =[sigma]=> n
+where "a-mem =[ sigma ]=> n" := (aeval a sigma mem n).
+
 
 
 (*Definition update (env : Env) (x : string) (v : ValueTypes) : Env :=
