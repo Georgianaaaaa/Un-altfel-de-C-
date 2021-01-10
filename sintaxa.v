@@ -31,7 +31,7 @@ Coercion stringg : string >-> ErrorString.
 
 
 
-
+(*EXPRESII ARITMETICE*)
 
 Inductive AExp :=
 | avar : string -> AExp
@@ -99,6 +99,7 @@ Definition modulo_ErrorNat (n1 n2 : ErrorNat) : ErrorNat :=
     | num v1, num v2 => num (Nat.modulo v1 v2)
     end.
 
+(*EXPRESII BOOLEENE*)
 
 Inductive BExp :=
 | berror : BExp
@@ -248,6 +249,8 @@ Notation "A [[ N ]] b:= S ":=(bool_array A N S) (at level 20).
 Notation "A [[ N ]] s:= S ":=(string_array A N S) (at level 20).
 
 Check ("v"[[ 10 ]] n:= [ 1 , 2 , 3 ]).
+Check ("booleean" [[ 5 ]] b:= [ true , false]).
+Check ("siruri" [[ 10 ]] s:= [ "proiect" , "plp" , "sintaxa"]).
 
 (*OPERATII CU VECTORI*)
 
@@ -336,7 +339,7 @@ Notation "X :s= A" := (string_assignment X A)(at level 90).
 Check "m" :s= "mama".
 
 Notation "'Nat' X ::= A" := (nat_decl X A)(at level 90).
-Check Nat "i" ::=10 .
+Check Nat "i" ::=10.
 
 Notation "'Bool' X ::= A" := (bool_decl X A)(at level 90).
 Check Bool "ok" ::= btrue .
@@ -348,7 +351,7 @@ Notation "S1 ;; S2" := (sequence S1 S2) (at level 90).
 Check ( Nat "n" ::= 10 ;; String "y" ::= "ab" ).
 
 Notation "'If' B 'Then' S1 'Else' S2 'End'" := (ifthenelse B S1 S2) (at level 97).
-Notation "while '(' A ')' '(' B ')' " := (while A B) (at level 50).
+Notation "'While' ( A ){ B } " := (while A B) (at level 50).
 Notation "'If' B 'Then' S  'End'" := (ifthen B S) (at level 97).
 Notation "'For' ( A ; B ; C ) { S }" := (A ;; while B ( S ;; C )) (at level 97).
 
@@ -376,10 +379,10 @@ Check cin>> "x".
 Notation " cout<< A ":=(afiseaza A) (at level 90).
 Check cout<< "x".
 
-Notation " X ((( S1 , .. , Sn )))" := (apel_fct X (cons S1 .. (cons Sn nil) .. ) ) (at level 90).
-Check "suma_pare" ((("a" , "b" ))).
-Notation " X ((( )))":=(apel_fct X nil)(at level 90).
-Check "cmmdc" ((( ))).
+Notation " 'call' X ((( S1 , .. , Sn )))" := (apel_fct X (cons S1 .. (cons Sn nil) .. ) ) (at level 90).
+Check call "suma_pare" ((("a" , "b" ))).
+Notation " 'call' X ((( )))":=(apel_fct X nil)(at level 90).
+Check call "cmmdc" ((( ))).
 
 Notation " 'NAT' X ":=(nat_decl_def X)(at level 90).
 Check NAT "x".
@@ -458,6 +461,7 @@ Check ( Nat "x" ::= 3 ;;
 
 Check ( NAT "x" ;;; 
         BOOL "ok" ;;;
+        pointer * "p" ;;;
         int_main() {Bool "b" ::= bfalse ;;
                    cin>> "x" ;;
                   If ("x" %' 2 == 0) 
@@ -465,13 +469,25 @@ Check ( NAT "x" ;;;
                   End  ;;
                   cout<< "ok" } ).
 
-Definition Env := string -> ValueTypes.
+Check ( int_functie "factorial"(( "n" )){ Nat "factorial" ::= 1 ;;
+                                          Nat "counter" ::= "n" ;;
+                                          While( "counter" >' 1 ){ Nat "factorial" ::= "factorial" *' "counter" ;;  
+                                                                   Nat "counter" ::= "counter" -' 1  ;;
+                                                                   cout<< "factorial" } } ;;;
+                NAT "valoare" ;;;
+                int_main() {
+                   cin>> "valoare" ;;
+                   call "factorial"((("valoare"))) }).     
+
+
+
+(*Definition Env := string -> ValueTypes.
 
 
 Definition env : Env := fun x => err_undeclared.
-Compute (env "x").
+Compute (env "x").*)
 
-(*Definition check_eq_over_types (t1 : ValueTypes) (t2 : ValueTypes) : bool :=
+Definition check_eq_over_types (t1 : ValueTypes) (t2 : ValueTypes) : bool :=
   match t1 with
     | err_undeclared => match t2 with 
                      | err_undeclared => true
@@ -505,13 +521,19 @@ Compute (env "x").
                   | res_stringg x => true
                   | _ => false
                   end
+    | code x => match t2 with
+                  | code x => true
+                  | _ => false
+                 end
   end.
 
 Compute (check_eq_over_types (err_undeclared) (natural 10)).
 Compute (check_eq_over_types (natural 1) (natural 2)).
 Compute (check_eq_over_types (res_stringg "a") (res_boolean true)).
+Compute (check_eq_over_types (res_stringg "a") (res_stringg "b")).
 
-Definition update (env : Env) (x : string) (v : ValueTypes) : Env :=
+
+(*Definition update (env : Env) (x : string) (v : ValueTypes) : Env :=
  fun y =>
   if (string_beq y x) 
    then
@@ -600,7 +622,7 @@ Compute (update_env env1 "x" (offset 9)) "x".
 
 (* Each variable/function name is initially mapped to undeclared *)
 Definition mem : MemLayer := fun x => err_undeclared.*)
-
+*)
 
 
 
