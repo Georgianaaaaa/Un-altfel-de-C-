@@ -255,17 +255,19 @@ Check ("siruri" [[ 10 ]] s:= [ "proiect" , "plp" , "sintaxa"]).
 (*OPERATII CU VECTORI*)
 
 Inductive Array_op :=
+| arr_const : ErrorArray -> Array_op
+| arr_var : string -> Array_op
 | array_length : ErrorArray -> Array_op
-| add_elem_nat : nat -> ErrorArray -> nat -> Array_op
+| add_elem_nat : ErrorArray -> nat -> Array_op
 | delete_elem : ErrorArray -> nat -> Array_op
-| max_array : ErrorArray -> Array_op
-| min_array : ErrorArray -> Array_op.
+| last_array : ErrorArray -> Array_op
+.
 
 Notation " 'lg' X ":=(array_length X)(at level 90).
 Check (lg "v" [[ 10 ]]n:= [ 1 , 2 , 3 ]).
 
-Notation " 'add' A 'to' X 'on' I ":=(add_elem_nat A X I)(at level 90).
-Check add 7 to "v" [[ 10 ]]n:= [ 1 , 2 , 3 ] on 2.
+Notation " 'add' X 'to' A ":=(add_elem_nat A X)(at level 90).
+Check add 7 to "v" [[ 10 ]]n:= [ 1 , 2 , 3 ].
 
 (*POINTERI SI REFERINTE*)
 
@@ -436,6 +438,7 @@ Inductive ValueTypes :=
 | natural : ErrorNat -> ValueTypes
 | res_boolean : ErrorBool -> ValueTypes
 | res_stringg : ErrorString -> ValueTypes
+| arr_value : ErrorArray -> ValueTypes
 | code : Stmt -> ValueTypes.
  
 Coercion code : Stmt >-> ValueTypes.
@@ -556,6 +559,10 @@ Definition check_eq_over_types (t1 : ValueTypes) (t2 : ValueTypes) : bool :=
                   end
     | code x => match t2 with
                   | code x => true
+                  | _ => false
+                 end
+    | arr_value x => match t2 with
+                  | arr_value x => true
                   | _ => false
                  end
   end.
@@ -715,7 +722,7 @@ eapply b_lessthan.
 reflexivity.
 Qed.
 
-(*SEMANTICA PENTRU OPERATIILE ARITMETICE*)
+(*SEMANTICA PENTRU OPERATIILE PE STRINGURI*)
 
 (*Fixpoint seval_fun (s : Strings) (env : Env)(mem : MemLayer) : ErrorString :=
   match s with
@@ -748,6 +755,89 @@ Inductive seval : Strings -> Env -> MemLayer -> ErrorString -> Prop :=
     s = strcmp_string i1 i2 ->
     (i1 ? i2) \*/ m ={ sigma }=> s
 where "S \*/ M ={ N }=> B" := (seval S N M B).
+
+Example ex5_strcat : strcat ("proiect" )("plp") \*/ mem={ env }=> "proiectplp".
+Proof.
+eapply s_concat.
+-apply s_const.
+-apply s_const.
+-simpl.
+reflexivity.
+Qed.
+
+Compute string_length "georgiana".
+
+Example ex6_strcmp : strcmp ("abcd")("abc") \*/ mem={ env }=> "abcd".
+Proof.
+eapply s_strcmp.
+-apply s_const.
+-apply s_const.
+-simpl.
+reflexivity.
+Qed.
+
+
+(*SEMANTICA PENTRU VECTORI*)
+
+Definition element (v : ErrorArray) (n : nat) : ValueTypes :=
+match v with
+| nat_array s n l => natural (List.nth n l 0)  
+| bool_array s n l => res_boolean (List.nth n l false) 
+| string_array s n l => res_stringg (List.nth n l "") 
+| error_array => err_undeclared
+end.
+
+Definition last_element (v : ErrorArray) : ValueTypes :=
+match v with 
+| nat_array s n l => natural (List.last l 0)
+| bool_array s n l => res_boolean (List.last l false)
+| string_array s n l => res_stringg (List.last l "")
+| error_array => err_undeclared
+end.
+
+Definition delete_element (v : ErrorArray) (nr : nat) : ValueTypes :=
+match v with
+| nat_array s n l => arr_value(nat_array s n (List.remove eq_nat_dec (List.nth nr l 0) l))
+| bool_array s n l => arr_value(bool_array s n (List.remove bool_dec (List.nth nr l false) l))
+| string_array s n l =>arr_value(string_array s n (List.remove string_dec (List.nth nr l "") l))
+| error_array => err_undeclared
+end.
+
+Compute delete_element ("v"[[ 10 ]] n:= [ 1 , 2 , 3 ]) 0.
+
+Definition insert_nat (v : ErrorArray) (nr : nat) : ValueTypes:=
+match v with
+| nat_array s n l => arr_value (nat_array s n (l++[nr]))
+| bool_array s n l => arr_value v
+| string_array s n l => arr_value v
+| error_array => err_undeclared
+end.
+
+Compute insert_nat ("v"[[ 10 ]] n:= [ 1 , 2 , 3 ]) 4.
+
+Inductive array_eval : Array_op -> Env -> MemLayer -> ValueTypes -> Prop :=
+| arr_constt: forall arr sigma m, array_eval (arr_const arr) sigma m (arr_value arr)
+| arr_varr: forall arr sigma m, array_eval (arr_var arr) sigma m  (m(sigma arr))
+| arr_last: forall arr sigma m, array_eval (last_array arr) sigma m (last_element arr) 
+| arr_delete_elem: forall arr nr sigma m, array_eval (delete_elem arr nr) sigma m (delete_element arr nr)
+| arr_add_elem_nat: forall arr nr sigma m, array_eval (add_elem_nat arr nr) sigma m (insert_nat arr nr)
+.
+
+Example ex7_last_elem_of_arr : array_eval (last_array ("v"[[ 10 ]] n:= [ 1 , 2 , 3 ])) env mem (natural 3) .
+Proof.
+apply arr_last.
+Qed.
+
+Example ex8_delete_from_arr : array_eval (delete_elem ("v"[[ 10 ]] n:= [ 1 , 2 , 3 ]) 1) env mem (arr_value("v"[[ 10 ]] n:= [ 1  , 3 ])).
+Proof.
+apply arr_delete_elem.
+Qed.
+
+
+Example ex8_insert_to_arr : array_eval (add_elem_nat ("v"[[ 10 ]] n:= [ 1 , 2 , 3 ]) 4) env mem (arr_value("v"[[ 10 ]] n:= [ 1 , 2 , 3 , 4 ])).
+Proof.
+apply arr_add_elem_nat.
+Qed.
 
 
 
